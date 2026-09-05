@@ -19,15 +19,18 @@ jobs:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     environment: Default
+    permissions:
+      contents: read  # This is required for actions/checkout
+      packages: write # This is required for pushing Docker images to ghcr.io
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # 1. Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # 2. Sets up the Docker Buildx builder instance
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       # 3. Logs in to Docker Hub
       #    This step is conditional and only runs on a push event to the main branch.
