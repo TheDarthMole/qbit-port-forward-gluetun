@@ -18,10 +18,8 @@ RUN go build -o main .
 # Use a smaller base image for the final image
 FROM scratch as minimal
 
-WORKDIR /app
-
 # Copy the built binary from the builder stage
 COPY --from=builder /app/main .
 
 # Set the entrypoint to the Go application
-CMD ["./main"]
+CMD ["/app/main"]
