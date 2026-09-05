@@ -18,10 +18,11 @@ This project is a Go rewrite of the original shell script by [@mjmeli](https://g
 
 The container is configured using the following environment variables:
 
-| Variable | Description | Default | Required |
-| :--- | :--- | :--- | :--- |
-| `QBT_API_KEY` | Your qBittorrent WebAPI key. | None | **Yes** |
-| `QBT_ADDR` | The full HTTP URL for the qBittorrent WebUI. | `http://localhost:8080` | No |
+| Variable | Description| Default | Required |
+| :--- |:--------------------------------------------------| :--- | :--- |
+| `QBT_API_KEY` | Your qBittorrent WebAPI key.                      | None | **Yes** |
+| `QBT_ADDR` | The full HTTP URL for the qBittorrent WebUI.      | `http://localhost:8080` | No |
+| `GLUETUN_API_KEY` | Your gluetun control server api key.              | None | **Yes** |
 | `GTN_ADDR` | The full HTTP URL for the Gluetun control server. | `http://localhost:8000` | No |
 
 qBittorrent API-key authentication requires qBittorrent `>= 5.2.0` or WebAPI `>= 2.14.1`.
@@ -47,7 +48,8 @@ For this script to read the forwarded port, you must enable Gluetun's HTTP contr
 name = "port-forward"
 # Allow access to the port forwarding endpoint
 routes = ["GET /v1/portforward"]
-auth = "none"
+auth = "apikey"
+apikey = "your_api_key_here"
 ```
 
 ### Docker-Compose Example
