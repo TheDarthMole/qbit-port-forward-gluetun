@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,15 +16,30 @@ import (
 )
 
 type config struct {
-	qbtAPIKey string
-	qbtAddr   string
-	gtnAddr   string
+	qbitAPIKey    string
+	qbitURL       string
+	gluetunURL    string
+	gluetunAPIKey string
 }
 
-func loadConfig() (config, error) {
-	qbtAPIKey := strings.TrimSpace(os.Getenv("QBT_API_KEY"))
-	if qbtAPIKey == "" {
-		return config{}, fmt.Errorf("QBT_API_KEY is required")
+var (
+	ErrQbitAPIKeyRequired    = errors.New("QBT_API_KEY is required")
+	ErrGluetunAPIKeyRequired = errors.New("QBT_API_KEY is required")
+	ErrInvalidPort           = errors.New("got invalid forwarded port")
+	ErrGettingListenPort     = errors.New("could not get current listen port")
+	ErrCantUpdatePort        = errors.New("could not update listen port")
+	ErrGettingGluetunPort    = errors.New("could not get current Gluetun port")
+)
+
+func loadConfig() (*config, error) {
+	qbitAPIKey := strings.TrimSpace(os.Getenv("QBT_API_KEY"))
+	if qbitAPIKey == "" {
+		return &config{}, ErrQbitAPIKeyRequired
+	}
+
+	gluetunAPIKey := strings.TrimSpace(os.Getenv("GTN_API_KEY"))
+	if gluetunAPIKey == "" {
+		return &config{}, ErrGluetunAPIKeyRequired
 	}
 
 	qbtAddr := os.Getenv("QBT_ADDR")
@@ -34,10 +51,11 @@ func loadConfig() (config, error) {
 		gtnAddr = "http://localhost:8000"
 	}
 
-	return config{
-		qbtAPIKey: qbtAPIKey,
-		qbtAddr:   qbtAddr,
-		gtnAddr:   gtnAddr,
+	return &config{
+		qbitAPIKey:    qbitAPIKey,
+		qbitURL:       qbtAddr,
+		gluetunURL:    gtnAddr,
+		gluetunAPIKey: gluetunAPIKey,
 	}, nil
 }
 
@@ -48,60 +66,61 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := &http.Client{}
-	nth := 0
-	// Run the logic every 30 seconds
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+
 	for {
-		if nth != 0 {
-			nth++
-			fmt.Println("Sleeping for 30 seconds")
-			time.Sleep(30 * time.Second)
-		} else {
-			nth++
+		if err = setPort(cfg, client); err != nil {
+			slog.Error("Error setting port:", slog.Any("error", err))
 		}
-
-		// Get the forwarded port from gluetun
-		fmt.Println("Getting forwarded port from gluetun")
-		portNumber, err := getForwardedPort(client, cfg.gtnAddr)
-		if err != nil {
-			fmt.Println("Could not get current forwarded port from gluetun:", err)
-			continue // Continue to the next iteration
-		}
-		if portNumber == 0 {
-			fmt.Println("Got invalid forwarded port, skipping...")
-			continue // Continue to the next iteration
-		}
-		fmt.Println("Forwarded port:", portNumber)
-
-		// Get the current listen port from qBittorrent
-		fmt.Println("Getting current listen port from qBittorrent")
-		listenPort, err := getListenPort(client, cfg.qbtAddr, cfg.qbtAPIKey)
-		if err != nil {
-			fmt.Println("Could not get current listen port:", err)
-			continue // Continue to the next iteration
-		}
-		fmt.Println("Current listen port:", listenPort)
-
-		// Check if the port needs to be updated
-		if portNumber == listenPort {
-			fmt.Println("Port already set, skipping...")
-			continue // Continue to the next iteration
-		}
-
-		// Update the listen port in qBittorrent
-		fmt.Printf("Updating port to %d\n", portNumber)
-		err = updateListenPort(client, cfg.qbtAddr, cfg.qbtAPIKey, portNumber)
-		if err != nil {
-			fmt.Println("Could not update listen port:", err)
-			continue // Continue to the next iteration
-		}
-
-		fmt.Println("Successfully updated port")
+		time.Sleep(30 * time.Second)
 	}
 }
 
-func getForwardedPort(client *http.Client, gtnAddr string) (int, error) {
-	resp, err := client.Get(gtnAddr + "/v1/portforward")
+func setPort(cfg *config, client *http.Client) error {
+	// Get the forwarded port from gluetun
+	slog.Debug("Getting forwarded port from gluetun")
+	newPort, err := getForwardedPort(client, cfg.gluetunURL, cfg.gluetunAPIKey)
+	if err != nil {
+		slog.Error("", slog.Any("error", err))
+		return fmt.Errorf("%w: %w", ErrGettingGluetunPort, err)
+	}
+	if newPort == 0 {
+		return ErrInvalidPort
+	}
+
+	// Get the current listen port from qBittorrent
+	oldPort, err := getListenPort(client, cfg.qbitURL, cfg.qbitAPIKey)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrGettingListenPort, err)
+	}
+	slog.Info("Current listen port", slog.Int("port", oldPort))
+
+	// Check if the port needs to be updated
+	if newPort == oldPort {
+		slog.Info("Port already set, skipping...", slog.Int("port", newPort))
+		return nil
+	}
+
+	// Update the listen port in qBittorrent
+	slog.Info("Updating port", slog.Int("new_port", newPort))
+	err = updateListenPort(client, cfg.qbitURL, cfg.qbitAPIKey, newPort)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrCantUpdatePort, err)
+	}
+
+	slog.Info("Successfully updated port", slog.Int("new_port", newPort))
+	return nil
+}
+
+func getForwardedPort(client *http.Client, gluetunURL, gluetunAPIKey string) (int, error) {
+	req, err := newRequest(http.MethodGet, gluetunURL, "/v1/portforward", gluetunAPIKey, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return 0, err
 	}
@@ -123,8 +142,8 @@ func getForwardedPort(client *http.Client, gtnAddr string) (int, error) {
 	return port, nil
 }
 
-func newQbittorrentRequest(method, qbtAddr, path, apiKey string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, qbtAddr+path, body)
+func newRequest(method, baseURL, path, apiKey string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, baseURL+path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +154,7 @@ func newQbittorrentRequest(method, qbtAddr, path, apiKey string, body io.Reader)
 }
 
 func getListenPort(client *http.Client, qbtAddr, apiKey string) (int, error) {
-	req, err := newQbittorrentRequest(http.MethodGet, qbtAddr, "/api/v2/app/preferences", apiKey, nil)
+	req, err := newRequest(http.MethodGet, qbtAddr, "/api/v2/app/preferences", apiKey, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -168,7 +187,7 @@ func updateListenPort(client *http.Client, qbtAddr, apiKey string, portNumber in
 	data := url.Values{}
 	data.Set("json", fmt.Sprintf(`{"listen_port": %d}`, portNumber))
 
-	req, err := newQbittorrentRequest(http.MethodPost, qbtAddr, "/api/v2/app/setPreferences", apiKey, strings.NewReader(data.Encode()))
+	req, err := newRequest(http.MethodPost, qbtAddr, "/api/v2/app/setPreferences", apiKey, strings.NewReader(data.Encode()))
 	if err != nil {
 		return err
 	}
