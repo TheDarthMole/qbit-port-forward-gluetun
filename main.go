@@ -24,7 +24,7 @@ type config struct {
 
 var (
 	ErrQbitAPIKeyRequired    = errors.New("QBT_API_KEY is required")
-	ErrGluetunAPIKeyRequired = errors.New("QBT_API_KEY is required")
+	ErrGluetunAPIKeyRequired = errors.New("GTN_API_KEY is required")
 	ErrInvalidPort           = errors.New("got invalid forwarded port")
 	ErrGettingListenPort     = errors.New("could not get current listen port")
 	ErrCantUpdatePort        = errors.New("could not update listen port")
@@ -62,7 +62,7 @@ func loadConfig() (*config, error) {
 func main() {
 	cfg, err := loadConfig()
 	if err != nil {
-		fmt.Println("Invalid configuration:", err)
+		slog.Error("Invalid configuration", slog.Any("error", err))
 		os.Exit(1)
 	}
 
