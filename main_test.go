@@ -1,15 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetListenPortUsesAPIKey(t *testing.T) {
 	const apiKey = "qbt_test_api_key"
+	const listenPort = 51413
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
@@ -17,13 +20,14 @@ func TestGetListenPortUsesAPIKey(t *testing.T) {
 		assert.Equal(t, "Bearer "+apiKey, r.Header.Get("Authorization"))
 
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"listen_port": 51413}`))
+		_, err := w.Write([]byte(fmt.Sprintf(`{"listen_port": %d}`, listenPort)))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
 	port, err := getListenPort(server.Client(), server.URL, apiKey)
 	assert.NoError(t, err)
-	assert.Equal(t, 51413, port)
+	assert.Equal(t, listenPort, port)
 }
 
 func TestUpdateListenPortUsesAPIKey(t *testing.T) {
@@ -44,10 +48,32 @@ func TestUpdateListenPortUsesAPIKey(t *testing.T) {
 	assert.NoError(t, updateListenPort(server.Client(), server.URL, apiKey, 51413))
 }
 
+func TestGetForwardedPortUsesAPIKey(t *testing.T) {
+	const apiKey = "gluetun_test_api_key"
+	const expectedPort = 1337
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/v1/portforward", r.URL.Path)
+		assert.Equal(t, "Bearer "+apiKey, r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte(fmt.Sprintf(`{"port": %d}`, expectedPort)))
+		require.NoError(t, err)
+	}))
+	defer server.Close()
+
+	port, err := getForwardedPort(server.Client(), server.URL, apiKey)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedPort, port)
+}
+
 func TestGetListenPortReturnsStatusError(t *testing.T) {
+	const badAPIKey = "bad api key"
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte("bad api key"))
+		_, err := w.Write([]byte(badAPIKey))
+		require.NoError(t, err)
 	}))
 	defer server.Close()
 
@@ -55,5 +81,5 @@ func TestGetListenPortReturnsStatusError(t *testing.T) {
 	assert.Errorf(t, err, "getListenPort returned nil error, want status error")
 
 	assert.Contains(t, err.Error(), "status code 403")
-	assert.Contains(t, err.Error(), "bad api key")
+	assert.Contains(t, err.Error(), badAPIKey)
 }
