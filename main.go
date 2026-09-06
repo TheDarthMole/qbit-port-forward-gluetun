@@ -20,6 +20,7 @@ type config struct {
 	qbitURL       string
 	gluetunURL    string
 	gluetunAPIKey string
+	delayDuration time.Duration
 }
 
 var (
@@ -29,26 +30,35 @@ var (
 	ErrGettingListenPort     = errors.New("could not get current listen port")
 	ErrCantUpdatePort        = errors.New("could not update listen port")
 	ErrGettingGluetunPort    = errors.New("could not get current Gluetun port")
+	ErrParsingDuration       = errors.New("could not parse duration")
 )
 
 func loadConfig() (*config, error) {
-	qbitAPIKey := strings.TrimSpace(os.Getenv("QBT_API_KEY"))
-	if qbitAPIKey == "" {
+	qbitAPIKey, exists := os.LookupEnv("QBT_API_KEY")
+	if !exists {
 		return &config{}, ErrQbitAPIKeyRequired
 	}
-
-	gluetunAPIKey := strings.TrimSpace(os.Getenv("GTN_API_KEY"))
-	if gluetunAPIKey == "" {
+	gluetunAPIKey, exists := os.LookupEnv("GTN_API_KEY")
+	if !exists {
 		return &config{}, ErrGluetunAPIKeyRequired
 	}
 
-	qbtAddr := os.Getenv("QBT_ADDR")
-	if qbtAddr == "" {
+	qbtAddr, exists := os.LookupEnv("QBT_ADDR")
+	if !exists {
 		qbtAddr = "http://localhost:8080"
 	}
-	gtnAddr := os.Getenv("GTN_ADDR")
-	if gtnAddr == "" {
+	gtnAddr, exists := os.LookupEnv("GTN_ADDR")
+	if !exists {
 		gtnAddr = "http://localhost:8000"
+	}
+
+	delayDurationStr, exists := os.LookupEnv("DELAY_DURATION")
+	if !exists {
+		delayDurationStr = "1m"
+	}
+	delayDuration, err := time.ParseDuration(delayDurationStr)
+	if err != nil {
+		return &config{}, fmt.Errorf("%w: failed parsing DELAY_DURATION", ErrParsingDuration)
 	}
 
 	return &config{
@@ -56,6 +66,7 @@ func loadConfig() (*config, error) {
 		qbitURL:       qbtAddr,
 		gluetunURL:    gtnAddr,
 		gluetunAPIKey: gluetunAPIKey,
+		delayDuration: delayDuration,
 	}, nil
 }
 
@@ -74,7 +85,7 @@ func main() {
 		if err = setPort(cfg, client); err != nil {
 			slog.Error("Error setting port:", slog.Any("error", err))
 		}
-		time.Sleep(30 * time.Second)
+		time.Sleep(cfg.delayDuration)
 	}
 }
 
