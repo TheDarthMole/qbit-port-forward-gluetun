@@ -16,7 +16,7 @@ RUN go mod download
 # Copy the source code
 COPY . .
 
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} go test ./...
+RUN go test ./...
 
 # Build the Go application
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} go build -o main .
