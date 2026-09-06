@@ -27,5 +27,7 @@ FROM scratch AS minimal
 # Copy the built binary from the builder stage
 COPY --from=builder /app/main .
 
+USER 1000:1000
+
 # Set the entrypoint to the Go application
 CMD ["/app/main"]
