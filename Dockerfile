@@ -16,7 +16,7 @@ COPY . .
 RUN go build -o main .
 
 # Use a smaller base image for the final image
-FROM scratch as minimal
+FROM scratch AS minimal
 
 # Copy the built binary from the builder stage
 COPY --from=builder /app/main .
