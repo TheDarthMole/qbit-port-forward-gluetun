@@ -19,7 +19,7 @@ COPY . .
 RUN go test ./...
 
 # Build the Go application
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} go build -o main .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} go build -o /app/main .
 
 # Use a smaller base image for the final image
 FROM scratch AS minimal
