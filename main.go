@@ -120,7 +120,7 @@ func setPort(cfg *config, client *http.Client) error {
 
 	// Update the listen port in qBittorrent
 	slog.Info("Updating port", slog.Int("new_port", newPort))
-	err = updateListenPort(client, cfg.qbitURL, cfg.qbitAPIKey, newPort)
+	err = updateQbitListenPort(client, cfg.qbitURL, cfg.qbitAPIKey, newPort)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrCantUpdatePort, err)
 	}
@@ -208,7 +208,7 @@ func getQbitListenPort(client *http.Client, qbtAddr, apiKey string) (int, error)
 	return port, nil
 }
 
-func updateListenPort(client *http.Client, qbtAddr, apiKey string, portNumber int) error {
+func updateQbitListenPort(client *http.Client, qbtAddr, apiKey string, portNumber int) error {
 	data := url.Values{}
 	data.Set("json", fmt.Sprintf(`{"listen_port": %d}`, portNumber))
 

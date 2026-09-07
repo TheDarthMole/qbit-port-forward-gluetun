@@ -45,7 +45,7 @@ func TestUpdateListenPortUsesAPIKey(t *testing.T) {
 	}))
 	defer server.Close()
 
-	assert.NoError(t, updateListenPort(server.Client(), server.URL, apiKey, 51413))
+	assert.NoError(t, updateQbitListenPort(server.Client(), server.URL, apiKey, 51413))
 }
 
 func TestGetForwardedPortUsesAPIKey(t *testing.T) {
