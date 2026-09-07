@@ -22,7 +22,7 @@ The container is configured using the following environment variables:
 |:-----------------|:--------------------------------------------------|:------------------------|:---------|
 | `QBT_API_KEY`    | Your qBittorrent WebAPI key.                      | None                    | **Yes**  |
 | `QBT_ADDR`       | The full HTTP URL for the qBittorrent WebUI.      | `http://localhost:8080` | No       |
-| `GTN_API_KEY`    | Your gluetun control server api key.              | None                    | **Yes**  |
+| `GTN_API_KEY`    | Your gluetun control server api key.              | None                    | No       |
 | `GTN_ADDR`       | The full HTTP URL for the Gluetun control server. | `http://localhost:8000` | No       |
 | `DELAY_DURATION` | The time to wait between setting the port number. | `1m`                    | No       |
 

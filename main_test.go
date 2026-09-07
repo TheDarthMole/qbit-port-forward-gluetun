@@ -55,7 +55,7 @@ func TestGetForwardedPortUsesAPIKey(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/v1/portforward", r.URL.Path)
-		assert.Equal(t, "Bearer "+apiKey, r.Header.Get("Authorization"))
+		assert.Equal(t, apiKey, r.Header.Get(GluetunApiKeyHeader))
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte(fmt.Sprintf(`{"port": %d}`, expectedPort)))
 		require.NoError(t, err)
