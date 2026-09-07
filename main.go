@@ -142,8 +142,6 @@ func getForwardedPort(client *http.Client, gluetunURL, gluetunAPIKey string) (in
 		return 0, err
 	}
 
-	fmt.Println("Got response from gluetun:", string(body))
-
 	portStr := gjson.GetBytes(body, "port").String()
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
