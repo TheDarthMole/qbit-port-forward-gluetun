@@ -25,7 +25,7 @@ func TestGetListenPortUsesAPIKey(t *testing.T) {
 	}))
 	defer server.Close()
 
-	port, err := getListenPort(server.Client(), server.URL, apiKey)
+	port, err := getQbitListenPort(server.Client(), server.URL, apiKey)
 	assert.NoError(t, err)
 	assert.Equal(t, listenPort, port)
 }
@@ -62,7 +62,7 @@ func TestGetForwardedPortUsesAPIKey(t *testing.T) {
 	}))
 	defer server.Close()
 
-	port, err := getForwardedPort(server.Client(), server.URL, apiKey)
+	port, err := getGluetunForwardedPort(server.Client(), server.URL, apiKey)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedPort, port)
 }
@@ -77,7 +77,7 @@ func TestGetListenPortReturnsStatusError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := getListenPort(server.Client(), server.URL, "qbt_test_api_key")
+	_, err := getQbitListenPort(server.Client(), server.URL, "qbt_test_api_key")
 	assert.Errorf(t, err, "getListenPort returned nil error, want status error")
 
 	assert.Contains(t, err.Error(), "status code 403")
