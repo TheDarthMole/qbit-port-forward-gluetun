@@ -24,13 +24,17 @@ type config struct {
 }
 
 var (
-	ErrQbitAPIKeyRequired    = errors.New("QBT_API_KEY is required")
-	ErrGluetunAPIKeyRequired = errors.New("GTN_API_KEY is required")
-	ErrInvalidPort           = errors.New("got invalid forwarded port")
-	ErrGettingListenPort     = errors.New("could not get current listen port")
-	ErrCantUpdatePort        = errors.New("could not update listen port")
-	ErrGettingGluetunPort    = errors.New("could not get current Gluetun port")
-	ErrParsingDuration       = errors.New("could not parse duration")
+	ErrQbitAPIKeyRequired = errors.New("QBT_API_KEY is required")
+	ErrInvalidPort        = errors.New("got invalid forwarded port")
+	ErrGettingListenPort  = errors.New("could not get current listen port")
+	ErrCantUpdatePort     = errors.New("could not update listen port")
+	ErrGettingGluetunPort = errors.New("could not get current Gluetun port")
+	ErrParsingDuration    = errors.New("could not parse duration")
+)
+
+const (
+	GluetunApiKeyHeader = "X-API-Key"
+	QbitApiKeyHeader    = "Authorization"
 )
 
 func loadConfig() (*config, error) {
@@ -40,7 +44,7 @@ func loadConfig() (*config, error) {
 	}
 	gluetunAPIKey, exists := os.LookupEnv("GTN_API_KEY")
 	if !exists {
-		return &config{}, ErrGluetunAPIKeyRequired
+		gluetunAPIKey = ""
 	}
 
 	qbtAddr, exists := os.LookupEnv("QBT_ADDR")
@@ -126,7 +130,7 @@ func setPort(cfg *config, client *http.Client) error {
 }
 
 func getForwardedPort(client *http.Client, gluetunURL, gluetunAPIKey string) (int, error) {
-	req, err := newRequest(http.MethodGet, gluetunURL, "/v1/portforward", gluetunAPIKey, nil)
+	req, err := newRequest(http.MethodGet, gluetunURL, "/v1/portforward", gluetunAPIKey, GluetunApiKeyHeader, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -151,19 +155,19 @@ func getForwardedPort(client *http.Client, gluetunURL, gluetunAPIKey string) (in
 	return port, nil
 }
 
-func newRequest(method, baseURL, path, apiKey string, body io.Reader) (*http.Request, error) {
+func newRequest(method, baseURL, path, apiKey, apiKeyHeader string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(method, baseURL+path, body)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set(apiKeyHeader, apiKey)
 
 	return req, nil
 }
 
 func getListenPort(client *http.Client, qbtAddr, apiKey string) (int, error) {
-	req, err := newRequest(http.MethodGet, qbtAddr, "/api/v2/app/preferences", apiKey, nil)
+	req, err := newRequest(http.MethodGet, qbtAddr, "/api/v2/app/preferences", "Bearer "+apiKey, QbitApiKeyHeader, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -196,7 +200,7 @@ func updateListenPort(client *http.Client, qbtAddr, apiKey string, portNumber in
 	data := url.Values{}
 	data.Set("json", fmt.Sprintf(`{"listen_port": %d}`, portNumber))
 
-	req, err := newRequest(http.MethodPost, qbtAddr, "/api/v2/app/setPreferences", apiKey, strings.NewReader(data.Encode()))
+	req, err := newRequest(http.MethodPost, qbtAddr, "/api/v2/app/setPreferences", "Bearer "+apiKey, QbitApiKeyHeader, strings.NewReader(data.Encode()))
 	if err != nil {
 		return err
 	}
