@@ -96,7 +96,7 @@ func main() {
 func setPort(cfg *config, client *http.Client) error {
 	// Get the forwarded port from gluetun
 	slog.Debug("Getting forwarded port from gluetun")
-	newPort, err := getForwardedPort(client, cfg.gluetunURL, cfg.gluetunAPIKey)
+	newPort, err := getGluetunForwardedPort(client, cfg.gluetunURL, cfg.gluetunAPIKey)
 	if err != nil {
 		slog.Error("", slog.Any("error", err))
 		return fmt.Errorf("%w: %w", ErrGettingGluetunPort, err)
@@ -106,7 +106,7 @@ func setPort(cfg *config, client *http.Client) error {
 	}
 
 	// Get the current listen port from qBittorrent
-	oldPort, err := getListenPort(client, cfg.qbitURL, cfg.qbitAPIKey)
+	oldPort, err := getQbitListenPort(client, cfg.qbitURL, cfg.qbitAPIKey)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrGettingListenPort, err)
 	}
@@ -129,8 +129,8 @@ func setPort(cfg *config, client *http.Client) error {
 	return nil
 }
 
-func getForwardedPort(client *http.Client, gluetunURL, gluetunAPIKey string) (int, error) {
-	req, err := newRequest(http.MethodGet, gluetunURL, "/v1/portforward", gluetunAPIKey, GluetunApiKeyHeader, nil)
+func getGluetunForwardedPort(client *http.Client, gluetunURL, gluetunAPIKey string) (int, error) {
+	req, err := newGluetunRequest(http.MethodGet, gluetunURL, "/v1/portforward", gluetunAPIKey, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -155,19 +155,31 @@ func getForwardedPort(client *http.Client, gluetunURL, gluetunAPIKey string) (in
 	return port, nil
 }
 
-func newRequest(method, baseURL, path, apiKey, apiKeyHeader string, body io.Reader) (*http.Request, error) {
+func newQbitRequest(method, baseURL, path, apiKey string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(method, baseURL+path, body)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set(apiKeyHeader, apiKey)
+	req.Header.Set(QbitApiKeyHeader, "Bearer "+apiKey)
 
 	return req, nil
 }
 
-func getListenPort(client *http.Client, qbtAddr, apiKey string) (int, error) {
-	req, err := newRequest(http.MethodGet, qbtAddr, "/api/v2/app/preferences", "Bearer "+apiKey, QbitApiKeyHeader, nil)
+func newGluetunRequest(method, baseURL, path, apiKey string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, baseURL+path, body)
+	if err != nil {
+		return nil, err
+	}
+	if apiKey != "" {
+		req.Header.Set(GluetunApiKeyHeader, apiKey)
+	}
+
+	return req, nil
+}
+
+func getQbitListenPort(client *http.Client, qbtAddr, apiKey string) (int, error) {
+	req, err := newQbitRequest(http.MethodGet, qbtAddr, "/api/v2/app/preferences", apiKey, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -200,7 +212,7 @@ func updateListenPort(client *http.Client, qbtAddr, apiKey string, portNumber in
 	data := url.Values{}
 	data.Set("json", fmt.Sprintf(`{"listen_port": %d}`, portNumber))
 
-	req, err := newRequest(http.MethodPost, qbtAddr, "/api/v2/app/setPreferences", "Bearer "+apiKey, QbitApiKeyHeader, strings.NewReader(data.Encode()))
+	req, err := newQbitRequest(http.MethodPost, qbtAddr, "/api/v2/app/setPreferences", apiKey, strings.NewReader(data.Encode()))
 	if err != nil {
 		return err
 	}
