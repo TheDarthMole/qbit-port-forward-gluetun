@@ -25,7 +25,7 @@ func TestGetListenPortUsesAPIKey(t *testing.T) {
 	}))
 	defer server.Close()
 
-	port, err := getListenPort(server.Client(), server.URL, apiKey)
+	port, err := getQbitListenPort(server.Client(), server.URL, apiKey)
 	assert.NoError(t, err)
 	assert.Equal(t, listenPort, port)
 }
@@ -45,7 +45,7 @@ func TestUpdateListenPortUsesAPIKey(t *testing.T) {
 	}))
 	defer server.Close()
 
-	assert.NoError(t, updateListenPort(server.Client(), server.URL, apiKey, 51413))
+	assert.NoError(t, updateQbitListenPort(server.Client(), server.URL, apiKey, 51413))
 }
 
 func TestGetForwardedPortUsesAPIKey(t *testing.T) {
@@ -55,14 +55,14 @@ func TestGetForwardedPortUsesAPIKey(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/v1/portforward", r.URL.Path)
-		assert.Equal(t, "Bearer "+apiKey, r.Header.Get("Authorization"))
+		assert.Equal(t, apiKey, r.Header.Get(GluetunApiKeyHeader))
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte(fmt.Sprintf(`{"port": %d}`, expectedPort)))
 		require.NoError(t, err)
 	}))
 	defer server.Close()
 
-	port, err := getForwardedPort(server.Client(), server.URL, apiKey)
+	port, err := getGluetunForwardedPort(server.Client(), server.URL, apiKey)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedPort, port)
 }
@@ -77,7 +77,7 @@ func TestGetListenPortReturnsStatusError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := getListenPort(server.Client(), server.URL, "qbt_test_api_key")
+	_, err := getQbitListenPort(server.Client(), server.URL, "qbt_test_api_key")
 	assert.Errorf(t, err, "getListenPort returned nil error, want status error")
 
 	assert.Contains(t, err.Error(), "status code 403")
