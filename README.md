@@ -21,26 +21,12 @@ The container is configured using the following environment variables:
 | Variable | Description | Default | Required |
 | :--- | :--- | :--- | :--- |
 | `QBT_API_KEY` | Your qBittorrent WebAPI key. | None | **Yes** |
-| `QBT_ADDR` | The full HTTP or HTTPS URL for the qBittorrent WebUI. | `http://localhost:8080` | No |
-| `GTN_ADDR` | The full HTTP or HTTPS URL for the Gluetun control server. | `http://localhost:8000` | No |
+| `QBT_ADDR` | The full HTTP URL for the qBittorrent WebUI. | `http://localhost:8080` | No |
+| `GTN_ADDR` | The full HTTP URL for the Gluetun control server. | `http://localhost:8000` | No |
 
 qBittorrent API-key authentication requires qBittorrent `>= 5.2.0` or WebAPI `>= 2.14.1`.
 Generate the key in qBittorrent under **Preferences -> WebUI -> API Key**.
 This utility sends the key as an `Authorization: Bearer <key>` header and does not call qBittorrent's auth endpoints.
-
-### HTTPS and Private Certificate Authorities
-
-The image includes Alpine's public CA bundle. For an endpoint signed by your own
-CA, mount its PEM certificate into the trust directory:
-
-```yaml
-volumes:
-  - ./private-ca.crt:/etc/ssl/certs/private-ca.crt:ro
-```
-
-The certificate must be readable by the container's user (`65532:65532`). This
-adds your CA alongside the public roots. HTTPS certificate and hostname
-verification remain enabled.
 
 ---
 
@@ -142,38 +128,6 @@ If you wish to build the image yourself.
 ```bash
 docker build . -t kirari04/qbittorrent-port-forward-gluetun-server:latest
 ```
-
-The runtime uses `scratch` and contains a static Go binary and a CA bundle copied
-from the Go Alpine builder. It runs as user `65532:65532` and supports a read-only
-root filesystem. It has no shell or package manager.
-
-### Run the Container Tests
-
-```bash
-docker build --target container-test -t port-forward:container-test .
-docker run --rm --network none --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,mode=1777 \
-  --cap-drop ALL --security-opt no-new-privileges \
-  port-forward:container-test
-```
-
-These tests launch the application inside its runtime filesystem, using local
-mock APIs. They cover HTTP and HTTPS port updates, private CA trust, rejection of
-untrusted certificates, startup configuration, and already-correct ports. The
-test executable is only included in the `container-test` target. The temporary
-filesystem is used for test certificates; the application needs no writable
-storage. CI runs these tests before publishing on a push to `main`.
-
-### Maintain the Image
-
-The builder is pinned by version and digest so compiler and CA changes are
-reviewable. Dependabot checks the Docker image daily and Go modules and GitHub
-Actions weekly. Review and merge those update PRs to publish refreshed images,
-then pull the new image and recreate running containers. Rebuilding an unchanged
-digest does not update its CA bundle.
-
-The `go` directive in `go.mod` records the minimum supported Go version. The
-Dockerfile selects the current compiler used for container releases.
 
 ### Run the Container Manually
 
