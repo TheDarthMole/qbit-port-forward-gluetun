@@ -1,29 +1,33 @@
-FROM golang:alpine AS builder
+# Dependabot tracks both the version and digest, including CA bundle updates.
+FROM golang:1.27.1-alpine3.24@sha256:cf6fca6641884b8433441b2b0652976f975e1d0fdd26d177eaaf8596087f3125 AS builder
 
-WORKDIR /app
+WORKDIR /src
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 
-# Copy the Go module files
-COPY go.mod ./
-COPY go.sum ./
-
-# Download dependencies (optional, but recommended for caching)
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the source code
-COPY . .
+COPY *.go ./
+RUN go test ./... && go vet ./...
+RUN go build -trimpath -mod=readonly -o /out/main .
 
-RUN go test ./...
+FROM scratch AS runtime
 
-# Build the Go application
-RUN go build -o /app/main .
+# Use the distribution's trust store without adding certificate code to the app.
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /out/main /app/main
 
-# Use a smaller base image for the final image
-FROM scratch AS minimal
-
+USER 65532:65532
 WORKDIR /app
-
-# Copy the built binary from the builder stage
-COPY --from=builder /app/main /app/main
-
-# Set the entrypoint to the Go application
 CMD ["/app/main"]
+
+# Run the actual application in its runtime filesystem during container tests.
+FROM builder AS test-builder
+RUN go test -c -tags=container -o /out/container-tests .
+
+FROM runtime AS container-test
+COPY --from=test-builder /out/container-tests /app/container-tests
+CMD ["/app/container-tests", "-test.v", "-test.run=^TestContainer", "-test.timeout=60s"]
+
+# Keep the default build free of the test executable.
+FROM runtime AS final
