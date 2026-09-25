@@ -4,6 +4,5 @@
 # include what we need
 !go.mod
 !go.sum
-!main.go
-!main_test.go
+!*.go
 !LICENSE
