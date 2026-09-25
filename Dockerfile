@@ -1,4 +1,5 @@
-FROM --platform=${BUILDPLATFORM} golang:alpine AS builder
+ARG BUILDPLATFORM
+FROM --platform=${BUILDPLATFORM} golang:1.27.1-alpine3.24@sha256:cf6fca6641884b8433441b2b0652976f975e1d0fdd26d177eaaf8596087f3125 AS builder
 
 WORKDIR /app
 
@@ -26,6 +27,7 @@ FROM scratch AS minimal
 
 # Copy the built binary from the builder stage
 COPY --from=builder /app/main /app/main
+COPY --from=builder /app/LICENSE /LICENSE
 
 USER 1000:1000
 
