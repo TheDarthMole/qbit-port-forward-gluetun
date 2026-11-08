@@ -85,7 +85,7 @@ services:
       # Enable the control server so the port-forward script can read the port
       - HTTP_CONTROL_SERVER_ADDRESS=:8000
     networks:
-      - arr_network
+      - gluetun
 
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -101,10 +101,16 @@ services:
       - gluetun
 
   port-forward:
-    image: kirari04/qbittorrent-port-forward-gluetun-server:latest
+    # Choose the appropriate tag based on your need:
+    # - "latest" for the latest stable version (which could become 2.x.y in the future and break things)
+    # - "edge" for the latest development version running on the default branch
+    # - "1" for the latest stable version whose major version is 1
+    # - "1.x" for the latest stable version whose major.minor version is 1.x
+    # - "1.x.y" to pin the specific version 1.x.y
+    image: ghcr.io/thedarthmole/qbit-port-forward-gluetun:latest
     restart: always
     networks:
-      - arr_network
+      - gluetun
     environment:
       # Use the service name and internal port for qBittorrent
       - QBT_ADDR=http://gluetun:8112
@@ -117,7 +123,7 @@ services:
       - qbittorrent
 
 networks:
-  arr_network:
+  gluetun:
     driver: bridge
 ```
 
@@ -130,7 +136,7 @@ If you wish to build the image yourself.
 ### Build the Docker Image
 
 ```bash
-docker build . -t kirari04/qbittorrent-port-forward-gluetun-server:latest
+docker build . -t ghcr.io/thedarthmole/qbit-port-forward-gluetun:latest
 ```
 
 ### Run the Container Manually
@@ -140,5 +146,5 @@ docker run --rm -it \
   -e QBT_API_KEY=qbt_XXXXXXXXXXXXXXXXXXXXXXXXXXXX \
   -e QBT_ADDR=http://192.168.1.100:8080 \
   -e GTN_ADDR=http://192.168.1.100:8000 \
-  kirari04/qbittorrent-port-forward-gluetun-server:latest
+  ghcr.io/thedarthmole/qbit-port-forward-gluetun:latest
 ```
