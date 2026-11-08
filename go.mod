@@ -2,6 +2,8 @@ module kirari04/qbittorrent-port-forward-gluetun-server
 
 go 1.25.5
 
+toolchain go1.27.3
+
 require (
 	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/gjson v1.19.0
