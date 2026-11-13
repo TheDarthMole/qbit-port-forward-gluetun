@@ -6,7 +6,7 @@ toolchain go1.27.3
 
 require (
 	github.com/stretchr/testify v1.12.1
-	github.com/tidwall/gjson v1.20.0
+	github.com/tidwall/gjson v1.20.1
 )
 
 require (
